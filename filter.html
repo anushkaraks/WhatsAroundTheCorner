@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Marketplace</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+            background: linear-gradient(to right, #ff6ec4, #7873f5);
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            background: radial-gradient(circle, #666df8, #1f1f20);
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .profile {
+            background: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+        .filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        .filter-bubble {
+            background-color: #ddd;
+            padding: 10px 15px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-bubble:hover, .filter-bubble.active {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
+</head>
+<body>
+    <!-- Role Selection -->
+    <div class="container" id="roleSelection">
+        <h2>Are you a shop owner or a customer?</h2>
+        <button onclick="chooseRole('owner')">I am a Shop Owner</button>
+        <button onclick="chooseRole('customer')">I am a Customer</button>
+    </div>
+
+    <!-- Shop Owner Signup -->
+    <div class="container" id="signupContainer" style="display:none;">
+        <h2>Shop Owner Signup</h2>
+        <input type="text" id="newEmail" placeholder="Email ID">
+        <input type="text" id="newUsername" placeholder="Username">
+        <input type="password" id="newPassword" placeholder="Password">
+        <button onclick="signup()">Signup</button>
+        <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+    </div>
+
+    <!-- Shop Owner Login -->
+    <div class="container" id="loginContainer" style="display:none;">
+        <h2>Shop Owner Login</h2>
+        <input type="text" id="email" placeholder="Email ID">
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Shop Profile Update -->
+    <div class="container" id="profileContainer" style="display:none;">
+        <h2>Update Shop Profile</h2>
+        <input type="text" id="shopName" placeholder="Shop Name">
+        <textarea id="about" placeholder="About the Shop"></textarea>
+        <input type="file" id="imageUpload" accept="image/*">
+        <button onclick="convertImageToText()">Upload and Convert Image to Menu</button>
+        <textarea id="menu" placeholder="Menu Details"></textarea>
+        <button onclick="updateProfile()">Update Profile</button>
+    </div>
+
+    <!-- Customer View with Search and Filters -->
+    <div class="container" id="shopListContainer" style="display:none;">
+        <h2>All Shops</h2>
+        <input type="text" id="searchBox" placeholder="Search shops..." oninput="filterProfiles()">
+        
+        <div class="filter-container">
+            <span class="filter-bubble active" onclick="filterByCategory('all')">All</span>
+            <span class="filter-bubble" onclick="filterByCategory('fruits')">Fruits</span>
+            <span class="filter-bubble" onclick="filterByCategory('vegetables')">Vegetables</span>
+            <span class="filter-bubble" onclick="filterByCategory('clothes')">Clothes</span>
+            <span class="filter-bubble" onclick="filterByCategory('cafe')">Cafe</span>
+            <span class="filter-bubble" onclick="filterByCategory('laundry')">Laundry</span>
+            <span class="filter-bubble" onclick="filterByCategory('parlour')">Parlour</span>
+            <span class="filter-bubble" onclick="filterByCategory('workshops')">Workshops</span>
+        </div>
+
+        <div id="allProfiles"></div>
+    </div>
+
+    <script>
+        let users = JSON.parse(localStorage.getItem('users')) || {};
+        let shopProfiles = JSON.parse(localStorage.getItem('shopProfiles')) || [];
+        let loggedInUser = localStorage.getItem('loggedInUser');
+
+        function chooseRole(role) {
+            document.getElementById('roleSelection').style.display = "none";
+            document.getElementById(role === 'owner' ? 'signupContainer' : 'shopListContainer').style.display = "block";
+            if (role === 'customer') displayAllProfiles();
+        }
+
+        function signup() {
+            let email = document.getElementById('newEmail').value;
+            let username = document.getElementById('newUsername').value;
+            let password = document.getElementById('newPassword').value;
+            users[email] = { username, password };
+            localStorage.setItem('users', JSON.stringify(users));
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('signupContainer').style.display = "none";
+            document.getElementById('loginContainer').style.display = "block";
+        }
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (users[email]?.password === password) {
+                loggedInUser = email;
+                localStorage.setItem('loggedInUser', loggedInUser);
+                document.getElementById('loginContainer').style.display = "none";
+                document.getElementById('profileContainer').style.display = "block";
+            }
+        }
+
+        function convertImageToText() {
+    const fileInput = document.getElementById('imageUpload');
+    const menuField = document.getElementById('menu');
+
+    if (fileInput.files.length === 0) {
+        alert('Please select an image to upload.');
+        return;
+    }
+
+    const imageFile = fileInput.files[0];
+    const imageUrl = URL.createObjectURL(imageFile); // Create a URL for the image file
+
+    Tesseract.recognize(imageUrl, 'eng')
+        .then(result => {
+            menuField.value = result.data.text;
+        })
+        .catch(error => {
+            console.error('Tesseract error:', error);
+            alert('Failed to convert image to text.');
+        });
+}
+
+        function updateProfile() {
+            const shopName = document.getElementById('shopName').value;
+            const about = document.getElementById('about').value;
+            const menu = document.getElementById('menu').value;
+            shopProfiles.push({ owner: loggedInUser, shopName, about, menu });
+            localStorage.setItem('shopProfiles', JSON.stringify(shopProfiles));
+        }
+
+        function filterByCategory(category) {
+            document.querySelectorAll('.filter-bubble').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            filterProfiles();
+        }
+
+        function filterProfiles() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-bubble.active').textContent.toLowerCase();
+            displayAllProfiles(activeFilter, searchTerm);
+        }
+
+        function displayAllProfiles(filter = 'all', searchTerm = '') {
+            const allProfilesDiv = document.getElementById('allProfiles');
+            allProfilesDiv.innerHTML = shopProfiles
+                .filter(p => (filter === 'all' || p.about.toLowerCase().includes(filter)) &&
+                             (p.shopName.toLowerCase().includes(searchTerm)))
+                .map(p => `<div class="profile"><h3>${p.shopName}</h3><p>${p.about}</p><p>${p.menu}</p></div>`)
+                .join('');
+        }
+    </script>
+</body>
+</html>
